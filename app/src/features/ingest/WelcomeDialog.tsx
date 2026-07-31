@@ -13,17 +13,21 @@ import {
   Ruler,
   ScanSearch,
   Scale,
+  TriangleAlert,
   X,
 } from "lucide-react";
 import { Button, Pill } from "@/components/ui";
+import { useSchemeStore } from "@/features/scheme/store";
+import type { DigitiseEvent, DigitiseStepId } from "./digitise";
 
 /**
  * Welcome + ingest, presented over the workspace rather than in front of it.
  * The scheme is already on screen underneath, so the first thing a new user
  * sees is the thing the product makes — the dialog only has to explain it.
  *
- * The digitiser agent is stubbed in this build: dropping a drawing plays the
- * agent's working loop and reveals the demo unit.
+ * Dropping a drawing runs the real digitiser: the file goes to /api/digitise,
+ * the agent's working loop streams back step by step, and the traced unit
+ * replaces the scheme underneath when the dialog closes.
  */
 
 /** The four views, in sidebar order — the dialog teaches the nav. */
@@ -50,39 +54,102 @@ const CAPABILITIES = [
   },
 ] as const;
 
-const STEPS = [
-  {
-    icon: ScanSearch,
-    label: "Reading the drawing",
-    detail: "1 page · 2400 × 1697 px · looks like a lease plan",
-  },
-  {
-    icon: Ruler,
-    label: "Finding the scale",
-    detail: "Two printed dimension strings, cross-checked — measured, high confidence",
-  },
-  {
-    icon: PencilRuler,
-    label: "Tracing the boundary",
-    detail: "6 corners · 2 columns · 4 openings on the front and rear walls",
-  },
-  {
-    icon: Scale,
-    label: "Checking itself",
-    detail: "Computed 108.0 m² against stated ~1,190 sq ft — within tolerance",
-  },
-] as const;
+const STEPS: { id: DigitiseStepId; icon: typeof ScanSearch; label: string }[] = [
+  { id: "read", icon: ScanSearch, label: "Reading the drawing" },
+  { id: "scale", icon: Ruler, label: "Finding the scale" },
+  { id: "trace", icon: PencilRuler, label: "Tracing the boundary" },
+  { id: "check", icon: Scale, label: "Checking itself" },
+];
 
-const STEP_MS = 900;
+const ACCEPTED = ["application/pdf", "image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif"];
+
+type StepState = { status: "todo" | "active" | "done"; detail?: string };
+type StepMap = Record<DigitiseStepId, StepState>;
+
+const initialSteps = (): StepMap => ({
+  read: { status: "todo" },
+  scale: { status: "todo" },
+  trace: { status: "todo" },
+  check: { status: "todo" },
+});
 
 export function WelcomeDialog({ onClose }: { onClose: () => void }) {
   const [phase, setPhase] = useState<"intro" | "digitising">("intro");
-  const [step, setStep] = useState(0);
+  const [steps, setSteps] = useState<StepMap>(initialSteps);
+  const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const loadScheme = useSchemeStore((s) => s.loadScheme);
 
-  const start = useCallback(() => setPhase("digitising"), []);
+  const close = useCallback(() => {
+    abortRef.current?.abort();
+    onClose();
+  }, [onClose]);
+
+  const start = useCallback(
+    async (file: File) => {
+      if (!ACCEPTED.includes(file.type)) {
+        setPhase("digitising");
+        setSteps(initialSteps());
+        setError(`"${file.name}" isn't a PDF or image — upload the drawing as PDF, PNG, JPG or WebP.`);
+        return;
+      }
+      setPhase("digitising");
+      setSteps(initialSteps());
+      setError(null);
+
+      const controller = new AbortController();
+      abortRef.current = controller;
+      const form = new FormData();
+      form.append("file", file);
+
+      try {
+        const res = await fetch("/api/digitise", {
+          method: "POST",
+          body: form,
+          signal: controller.signal,
+        });
+        if (!res.ok || !res.body) {
+          const body = await res.json().catch(() => null);
+          throw new Error(body?.error ?? `The digitiser failed (${res.status}).`);
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let done = false;
+        while (!done) {
+          const chunk = await reader.read();
+          done = chunk.done;
+          buffer += decoder.decode(chunk.value, { stream: !done });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            const event = JSON.parse(line) as DigitiseEvent;
+            if (event.type === "step") {
+              setSteps((s) => ({
+                ...s,
+                [event.id]: { status: event.status, detail: event.detail },
+              }));
+            } else if (event.type === "error") {
+              throw new Error(event.message);
+            } else if (event.type === "result") {
+              loadScheme(event.scheme);
+              // Let the last tick land before revealing the workspace.
+              setTimeout(onClose, 700);
+            }
+          }
+        }
+      } catch (err) {
+        if (controller.signal.aborted) return;
+        setError(err instanceof Error ? err.message : "The digitiser failed unexpectedly.");
+      }
+    },
+    [loadScheme, onClose],
+  );
 
   // Move focus into the dialog on open; the workspace behind is inert.
   useEffect(() => {
@@ -92,27 +159,22 @@ export function WelcomeDialog({ onClose }: { onClose: () => void }) {
   // Esc dismisses — you land in the demo scheme either way.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") close();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [close]);
 
-  // The stubbed agent's working loop, then the workspace is revealed.
-  useEffect(() => {
-    if (phase !== "digitising") return;
-    const t = setTimeout(() => {
-      if (step === STEPS.length) onClose();
-      else setStep((s) => s + 1);
-    }, STEP_MS);
-    return () => clearTimeout(t);
-  }, [phase, step, onClose]);
+  // Abort an in-flight digitise if the dialog unmounts.
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  const busy = phase === "digitising" && !error && steps.check.status !== "done";
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-scrim p-4 animate-scrim-in max-md:items-start max-md:p-3"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget) close();
       }}
     >
       <div
@@ -136,7 +198,7 @@ export function WelcomeDialog({ onClose }: { onClose: () => void }) {
           </div>
           <Pill>Beta</Pill>
           <button
-            onClick={onClose}
+            onClick={close}
             aria-label="Close"
             className="-mr-1 flex size-8 items-center justify-center rounded-lg text-ink-tertiary transition-colors duration-120 hover:bg-hover hover:text-ink"
           >
@@ -194,7 +256,8 @@ export function WelcomeDialog({ onClose }: { onClose: () => void }) {
                 onDrop={(e) => {
                   e.preventDefault();
                   setDragOver(false);
-                  start();
+                  const file = e.dataTransfer.files?.[0];
+                  if (file) void start(file);
                 }}
                 className={`mt-5 flex items-center gap-4 rounded-lg border border-dashed px-4 py-4 transition-colors duration-120 max-md:flex-col max-md:text-center ${
                   dragOver ? "border-accent bg-selected" : "border-line-strong bg-sunken"
@@ -222,35 +285,38 @@ export function WelcomeDialog({ onClose }: { onClose: () => void }) {
                   type="file"
                   accept="image/*,.pdf"
                   className="hidden"
-                  onChange={() => start()}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = "";
+                    if (file) void start(file);
+                  }}
                 />
               </div>
             </>
           ) : (
-            <div className="mt-5" aria-busy={step < STEPS.length} role="status">
+            <div className="mt-5" aria-busy={busy} role="status">
               <div className="mb-4 text-sm font-medium text-ink">
                 Digitising the drawing
               </div>
               <ol className="flex flex-col gap-4">
-                {STEPS.map((s, i) => {
-                  const state = i < step ? "done" : i === step ? "active" : "todo";
-                  const Icon = s.icon;
+                {STEPS.map(({ id, icon: Icon, label }) => {
+                  const step = steps[id];
                   return (
-                    <li key={s.label} className="flex items-start gap-3">
+                    <li key={id} className="flex items-start gap-3">
                       <div className="mt-0.5">
-                        {state === "done" ? (
+                        {step.status === "done" ? (
                           <Check className="size-4 text-success" strokeWidth={2.5} />
-                        ) : state === "active" ? (
+                        ) : step.status === "active" && !error ? (
                           <Loader2 className="size-4 animate-spin text-accent" />
                         ) : (
                           <Icon className="size-4 text-ink-disabled" strokeWidth={1.5} />
                         )}
                       </div>
-                      <div className={state === "todo" ? "opacity-40" : ""}>
-                        <div className="text-sm text-ink">{s.label}</div>
-                        {state !== "todo" && (
+                      <div className={step.status === "todo" ? "opacity-40" : ""}>
+                        <div className="text-sm text-ink">{label}</div>
+                        {step.detail && (
                           <div className="mt-0.5 text-[13px] text-ink-tertiary">
-                            {s.detail}
+                            {step.detail}
                           </div>
                         )}
                       </div>
@@ -258,6 +324,26 @@ export function WelcomeDialog({ onClose }: { onClose: () => void }) {
                   );
                 })}
               </ol>
+
+              {error && (
+                <div className="mt-5 flex items-start gap-2.5 rounded-lg bg-sunken px-3.5 py-3">
+                  <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" strokeWidth={1.75} />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[13px] font-medium text-ink">
+                      The digitiser couldn&apos;t finish
+                    </div>
+                    <p className="mt-0.5 text-[13px] leading-snug text-ink-tertiary">{error}</p>
+                    <div className="mt-2.5 flex gap-2">
+                      <Button variant="secondary" size="sm" onClick={() => setPhase("intro")}>
+                        Try another file
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={close}>
+                        Explore the demo unit
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
           </div>
@@ -266,11 +352,11 @@ export function WelcomeDialog({ onClose }: { onClose: () => void }) {
         {/* ── Footer ──────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between gap-4 border-t border-line-subtle px-6 py-3.5 max-md:px-5">
           <p className="text-xs text-ink-tertiary">
-            Preview build — the digitiser agent returns the demo unit. Every dimension
-            it emits carries how it was obtained.
+            The digitiser reads your drawing with a vision agent. Every dimension it
+            emits carries how it was obtained.
           </p>
           {phase === "intro" && (
-            <Button variant="secondary" size="sm" className="shrink-0" onClick={onClose}>
+            <Button variant="secondary" size="sm" className="shrink-0" onClick={close}>
               Explore the demo unit
             </Button>
           )}

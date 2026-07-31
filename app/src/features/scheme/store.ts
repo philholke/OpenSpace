@@ -37,6 +37,8 @@ interface SchemeState {
   // Scheme
   renameScheme: (name: string) => void;
   resetDemo: () => void;
+  /** Replace the whole scheme — how a digitised drawing lands in the workspace. */
+  loadScheme: (scheme: Scheme) => void;
 }
 
 let counter = 0;
@@ -167,4 +169,5 @@ export const useSchemeStore = create<SchemeState>((set, get) => ({
 
   renameScheme: (name) => set((s) => ({ scheme: { ...s.scheme, name } })),
   resetDemo: () => set({ scheme: createDemoScheme(), selectedItemId: null, selectedRoomId: null }),
+  loadScheme: (scheme) => set({ scheme, selectedItemId: null, selectedRoomId: null }),
 }));

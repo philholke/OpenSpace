@@ -4,10 +4,39 @@ Latest updates on top.
 
 ## Index
 
+- [0.2.0 — 2026-07-31 — Real drawing ingestion: upload → Claude vision digitiser](#020--2026-07-31--real-drawing-ingestion)
 - [0.1.1 — 2026-07-31 — Workspace-first landing: the ingest becomes a dialog over the dashboard](#011--2026-07-31--workspace-first-landing)
 - [0.1.0 — 2026-07-31 — v1 frontend built, verified and deployed (deployment later torn down)](#010--2026-07-31--v1-frontend)
 - [0.0.2 — 2026-07-31 — Direction: agentic drawing ingestion](#002--2026-07-31--direction)
 - [0.0.1 — 2026-07-30 — Planning docs and repo setup](#001--2026-07-30--planning)
+
+---
+
+## 0.2.0 — 2026-07-31 — Real drawing ingestion
+
+**Why.** The digitiser was theatre: the drop zone discarded the file, a timer played hardcoded narration, and the demo unit appeared regardless. This makes the upload real — the four steps the dialog already showed (read → scale → trace → check) now actually happen. Full detail in [`docs/completions/0.2.0-real-drawing-ingestion.md`](completions/0.2.0-real-drawing-ingestion.md).
+
+### The digitiser agent — new `src/app/api/digitise/route.ts`
+
+- `POST` multipart upload (PDF/PNG/JPG/WebP, ≤ 20 MB) → streams newline-delimited `DigitiseEvent` JSON: real step progress, then the digitised `Scheme` (or an actionable error).
+- Two `claude-opus-5` vision passes via `@anthropic-ai/sdk` (new dep): **read + establish scale** (the 0.0.2 ladder — printed dimensions → scale bar → stated area → priors, mapped honestly onto `Provenance`), then **trace** boundary/openings/columns in real mm using pass 1's findings. Both passes use structured outputs (strict JSON schemas), streaming, and handle `refusal`/`max_tokens` stop reasons.
+- PDFs go to Claude natively as base64 document blocks — no pdf.js, no rasterisation.
+- **The check step is computed, not asked:** shoelace area vs the drawing's stated area; >15 % off downgrades the scale confidence shown in the sidebar.
+
+### Normalisation — new `src/features/ingest/digitise.ts`
+
+- The model emits openings/columns as **centre coordinates**, never edge indices; `normaliseUnit()` projects them onto the nearest boundary edge (>1.2 m from any wall → dropped, not guessed), snaps to the 25 mm grid, translates to origin, and enforces the clockwise winding the SVG plan and 3D extrusion assume.
+
+### Frontend — `WelcomeDialog.tsx` rewritten, `store.ts` extended
+
+- Drop/choose now sends the actual file and renders streamed progress per step (spinner → tick + real detail). Error state with "Try another file" / demo fallback; in-flight runs abort on close. Footer no longer claims a stub.
+- New `loadScheme()` store action — the traced unit becomes the plan, the walkthrough and the (empty) cost base in one move, since all views derive from the single store. Fresh scheme: traced unit, empty rooms/items/references; demo stays reachable via Reset.
+
+### Verification
+
+- `pnpm build` clean (TypeScript included); lint unchanged from baseline (the 4 known `WalkthroughView.tsx` errors).
+- Test fixture built: an A3 lease-plan PDF for a fictional "88 Club Street #02-15" — L-shaped 12 000 × 9 000 with a 4 000 × 3 000 notch, 96.0 m² stated, dimension strings, door swings, window runs, one column — deliberately unlike the demo unit so a genuine trace is unambiguous.
+- **Still open:** the live end-to-end run (upload fixture → assert the L-shape in plan + walkthrough) is blocked only on `ANTHROPIC_API_KEY` landing in `app/.env.local`. Uploaded schemes still reset on reload (no persistence — deliberate gap unchanged).
 
 ---
 
