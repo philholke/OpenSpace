@@ -1,0 +1,178 @@
+@import "tailwindcss";
+
+/* ── Satoshi (self-hosted, styleguide §1.1) ─────────────────────────── */
+@font-face {
+  font-family: "Satoshi";
+  src: url("/fonts/Satoshi-Light.woff2") format("woff2");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Satoshi";
+  src: url("/fonts/Satoshi-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Satoshi";
+  src: url("/fonts/Satoshi-Italic.woff2") format("woff2");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Satoshi";
+  src: url("/fonts/Satoshi-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Satoshi";
+  src: url("/fonts/Satoshi-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* ── Tier 1: primitives (the only place hex lives) ──────────────── */
+  --c-green-900: #1d3a2a;
+  --c-ink-900: #171717;
+  --c-ink-700: #55534c;
+  --c-ink-500: #6b6962;
+  --c-ink-300: #8d8a82;
+  --c-beige-100: #f6f5f1;
+  --c-white: #ffffff;
+  --c-selected: #eef2ef;
+  --c-input-border: #807d76;
+  --c-error: #9a3b2e;
+  --c-error-tint: #fbf1ef;
+  --c-warning: #8a5a1f;
+  --c-warning-tint: #f8f1e3;
+  --c-success: #2f6b46;
+  --c-success-tint: #ebf2ec;
+  --c-info: #335a7a;
+  --c-info-tint: #eaf0f5;
+  --c-tooltip: #161512;
+
+  /* ── Tier 2: semantic aliases ───────────────────────────────────── */
+  --color-text-primary: var(--c-ink-900);
+  --color-text-secondary: var(--c-ink-700);
+  --color-text-tertiary: var(--c-ink-500);
+  --color-text-disabled: var(--c-ink-300);
+  --color-text-inverse: var(--c-white);
+  --color-text-link: var(--c-green-900);
+  --color-brand-accent: var(--c-green-900);
+
+  --surface-base: var(--c-white);
+  --surface-sunken: var(--c-beige-100);
+  --surface-hover: var(--c-beige-100);
+  --surface-selected: var(--c-selected);
+  --surface-accent: var(--c-green-900);
+
+  --border-subtle: rgba(23, 23, 23, 0.1);
+  --border-default: rgba(23, 23, 23, 0.16);
+  --border-strong: rgba(23, 23, 23, 0.28);
+  --border-input: var(--c-input-border);
+  --border-focus: var(--c-green-900);
+
+  --color-feedback-error: var(--c-error);
+  --color-feedback-error-tint: var(--c-error-tint);
+  --color-feedback-warning: var(--c-warning);
+  --color-feedback-warning-tint: var(--c-warning-tint);
+  --color-feedback-success: var(--c-success);
+  --color-feedback-success-tint: var(--c-success-tint);
+  --color-feedback-info: var(--c-info);
+  --color-feedback-info-tint: var(--c-info-tint);
+
+  --elevation-1: 0 1px 2px rgba(23, 23, 23, 0.05), 0 1px 1px rgba(23, 23, 23, 0.04);
+  --elevation-2: 0 4px 12px rgba(23, 23, 23, 0.08), 0 1px 3px rgba(23, 23, 23, 0.06);
+  --elevation-3: 0 24px 60px rgba(23, 23, 23, 0.12), 0 4px 12px rgba(23, 23, 23, 0.08);
+
+  --font-sans-stack: "Satoshi", ui-sans-serif, system-ui, sans-serif;
+  --font-mono-stack: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
+
+  /* ── Tier 3: component tokens (as needed) ───────────────────────── */
+  --button-primary-bg: var(--color-brand-accent);
+  --input-border: var(--border-input);
+  --table-row-hover: var(--surface-hover);
+}
+
+/* Tailwind utility bindings — components use these, never raw hex */
+@theme inline {
+  --color-*: initial;
+  --color-ink: var(--color-text-primary);
+  --color-ink-secondary: var(--color-text-secondary);
+  --color-ink-tertiary: var(--color-text-tertiary);
+  --color-ink-disabled: var(--color-text-disabled);
+  --color-inverse: var(--color-text-inverse);
+  --color-link: var(--color-text-link);
+  --color-accent: var(--color-brand-accent);
+  --color-base: var(--surface-base);
+  --color-sunken: var(--surface-sunken);
+  --color-hover: var(--surface-hover);
+  --color-selected: var(--surface-selected);
+  --color-line-subtle: var(--border-subtle);
+  --color-line: var(--border-default);
+  --color-line-strong: var(--border-strong);
+  --color-line-input: var(--border-input);
+  --color-error: var(--color-feedback-error);
+  --color-error-tint: var(--color-feedback-error-tint);
+  --color-warning: var(--color-feedback-warning);
+  --color-warning-tint: var(--color-feedback-warning-tint);
+  --color-success: var(--color-feedback-success);
+  --color-success-tint: var(--color-feedback-success-tint);
+  --color-info: var(--color-feedback-info);
+  --color-info-tint: var(--color-feedback-info-tint);
+  --color-white: #ffffff;
+  --color-transparent: transparent;
+  --font-sans: var(--font-sans-stack);
+  --font-mono: var(--font-mono-stack);
+  --shadow-elevation-1: var(--elevation-1);
+  --shadow-elevation-2: var(--elevation-2);
+  --shadow-elevation-3: var(--elevation-3);
+}
+
+body {
+  background: var(--surface-sunken);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans-stack);
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  text-wrap: pretty;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-brand-accent);
+  outline-offset: 2px;
+  border-radius: inherit;
+}
+
+.on-accent :focus-visible {
+  outline-color: var(--color-text-inverse);
+}
+
+/* Numbers that can change or align in a column (§5.3) */
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
