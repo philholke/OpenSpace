@@ -1,12 +1,12 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
-import Link from "next/link";
 import {
   Box,
   Calculator,
+  CircleHelp,
   Images,
   Map,
   RefreshCcw,
@@ -19,6 +19,7 @@ import { StatsBar } from "./StatsBar";
 import { PlanEditor } from "@/features/plan/PlanEditor";
 import { AlbumView } from "@/features/album/AlbumView";
 import { CostView } from "@/features/cost/CostView";
+import { WelcomeDialog } from "@/features/ingest/WelcomeDialog";
 
 const WalkthroughView = dynamic(
   () => import("@/features/walkthrough/WalkthroughView").then((m) => m.WalkthroughView),
@@ -50,16 +51,28 @@ export function WorkspaceShell() {
   const scheme = useSchemeStore((s) => s.scheme);
   const resetDemo = useSchemeStore((s) => s.resetDemo);
 
+  /**
+   * The workspace is the landing page. The welcome sits over it so the first
+   * thing you see is a real scheme, not an empty room.
+   */
+  const [welcomeOpen, setWelcomeOpen] = useState(true);
+  const closeWelcome = useCallback(() => setWelcomeOpen(false), []);
+
   const setView = useCallback(
-    (v: ViewKey) => router.replace(`/scheme?view=${v}`, { scroll: false }),
+    (v: ViewKey) => router.replace(`/?view=${v}`, { scroll: false }),
     [router],
   );
 
   return (
-    <div className="flex h-dvh bg-sunken">
+    <>
+    <div className="flex h-dvh bg-sunken" inert={welcomeOpen}>
       {/* ── Side-nav (§7.2) ─────────────────────────────────────────── */}
       <nav className="flex w-[240px] shrink-0 flex-col border-r border-line bg-base max-md:hidden">
-        <Link href="/" className="flex items-center gap-2.5 px-4 py-4">
+        <button
+          onClick={() => setWelcomeOpen(true)}
+          title="What is OpenSpace?"
+          className="flex items-center gap-2.5 px-4 py-4 text-left transition-colors duration-120 hover:bg-hover"
+        >
           <div className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-accent">
             <div className="size-3.5 rounded-[3px] border-2 border-white/90" aria-hidden />
           </div>
@@ -68,7 +81,7 @@ export function WorkspaceShell() {
             <div className="text-xs text-ink-tertiary">Workspace</div>
           </div>
           <Pill>Beta</Pill>
-        </Link>
+        </button>
 
         <div className="flex-1 overflow-y-auto px-2 py-2">
           <div className="px-2 pb-1.5 pt-2 text-[11px] font-medium uppercase tracking-[0.06em] text-ink-tertiary">
@@ -129,6 +142,15 @@ export function WorkspaceShell() {
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setWelcomeOpen(true)}
+              title="What is OpenSpace?"
+            >
+              <CircleHelp className="size-3.5" strokeWidth={1.75} />
+              How it works
+            </Button>
             <Button variant="ghost" size="sm" onClick={resetDemo} title="Reset the demo scheme">
               <RefreshCcw className="size-3.5" strokeWidth={1.75} />
               Reset
@@ -169,5 +191,8 @@ export function WorkspaceShell() {
         </main>
       </div>
     </div>
+
+    {welcomeOpen && <WelcomeDialog onClose={closeWelcome} />}
+    </>
   );
 }

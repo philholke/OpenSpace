@@ -4,13 +4,52 @@ Latest updates on top.
 
 ## Index
 
-- [2026-07-31 — v1 frontend built, verified and deployed (deployment later torn down)](#2026-07-31--v1-frontend)
-- [2026-07-31 — Direction: agentic drawing ingestion](#2026-07-31--direction)
-- [2026-07-30 — Planning docs and repo setup](#2026-07-30--planning)
+- [0.1.1 — 2026-07-31 — Workspace-first landing: the ingest becomes a dialog over the dashboard](#011--2026-07-31--workspace-first-landing)
+- [0.1.0 — 2026-07-31 — v1 frontend built, verified and deployed (deployment later torn down)](#010--2026-07-31--v1-frontend)
+- [0.0.2 — 2026-07-31 — Direction: agentic drawing ingestion](#002--2026-07-31--direction)
+- [0.0.1 — 2026-07-30 — Planning docs and repo setup](#001--2026-07-30--planning)
 
 ---
 
-## 2026-07-31 — v1 frontend
+## 0.1.1 — 2026-07-31 — Workspace-first landing
+
+**Why.** The standalone landing page was a card floating on an empty beige field. It looked calm but told a first-time visitor almost nothing: no sidebar, no numbers, no plan — nothing that shows what the product *makes*. You had to commit (drop a file) before you were allowed to see anything. The fix is to invert it: put the finished thing on screen first and let the explanation sit over it.
+
+### The landing is now the workspace
+
+- `src/app/page.tsx` — `/` renders `WorkspaceShell` (in `Suspense`, for `useSearchParams`) instead of the old landing. You arrive inside the demo scheme: sidebar, header, live stats strip, palette, plan and inspector all present.
+- `src/app/scheme/page.tsx` — now a redirect to `/`, preserving `?view=` so older links still land on the right view. Next 16 passes `searchParams` as a Promise, so the page is `async` and awaits it.
+- `WorkspaceShell.tsx` — `setView()` writes `/?view=…` rather than `/scheme?view=…`.
+
+### The welcome dialog
+
+- New `src/features/ingest/WelcomeDialog.tsx`, replacing `IngestLanding.tsx` (deleted). Opens over the workspace on load.
+- **It explains the product, which is the actual fix.** A four-card grid — Plan, Walkthrough, Album, Cost — using the same icons and order as the sidebar, so the dialog doubles as a legend for the nav you can see behind it. Under it, the thesis in one line: the box you place on the plan is the reference you pinned and the line in the cost.
+- The ingest drop zone is now a compact horizontal strip rather than the full-bleed target it was — it is one action among several, not the only door.
+- Two clearly separated exits: **Choose a file** / drop plays the stubbed digitiser loop then reveals the workspace; **Explore the demo unit** dismisses immediately. Previously "Open the demo unit" also ran the fake ingest animation, which conflated the two.
+- Re-openable, so it is not a one-shot: **How it works** in the header, and the sidebar wordmark (now a button, not a `Link` to a route that no longer exists).
+- Dismissal: Esc, backdrop mousedown, or the close button — all land you in the demo scheme rather than a dead end.
+- Accessibility: `role="dialog"` + `aria-modal` + `aria-labelledby`, focus moved into the dialog on open, and the workspace wrapper takes React 19's `inert` prop while it is open — a real focus trap rather than a hand-rolled tab cycle.
+- The phase-swap area is `md:min-h-[336px]` so switching from intro to the agent loop doesn't resize the dialog under the cursor.
+
+### Tokens
+
+- `globals.css` — added `--surface-scrim` (tier 2) bound to `--color-scrim` (`bg-scrim`), keeping the primitives → semantic → component discipline; no raw hex reached a component.
+- Added `scrim-in` / `dialog-in` keyframes and their utilities, sitting above the existing `prefers-reduced-motion` block so they are muted with everything else.
+
+### Verification
+
+- `pnpm build` clean (TypeScript included). The 4 remaining `pnpm lint` errors are pre-existing in `WalkthroughView.tsx` — `react-hooks/immutability` firing on r3f camera mutation inside `useFrame` — and were not touched here.
+- Headless system Chrome via `playwright-core` at 1440×900 and 390×844: dialog over a populated workspace, Esc-to-dismiss, re-open from the header, and a synthetic drop driving the digitiser loop through to the dialog closing on the plan. Mobile 390 px: `scrollWidth === innerWidth`, no page overflow, dialog scrolls within its own overlay.
+
+### Still open
+
+- The dialog opens on every page load (no persistence) — deliberate for a demo where reviewers land fresh, but it needs a "seen" flag before this is real.
+- Everything from 0.1.0 stands: digitiser stubbed, no Supabase, "Share scheme" UI-only, no live deployment.
+
+---
+
+## 0.1.0 — 2026-07-31 — v1 frontend
 
 First fully usable version of the OpenSpace miniapp: frontend design/layout/UI/UX complete, all state in-browser (Supabase and real integrations deliberately skipped for now).
 
@@ -58,7 +97,7 @@ First fully usable version of the OpenSpace miniapp: frontend design/layout/UI/U
 
 ---
 
-## 2026-07-31 — Direction
+## 0.0.2 — 2026-07-31 — Direction
 
 - Reframed drawing ingestion from one-shot vision extraction to an **agentic measurement loop**: a vision LLM with tools (`view_region`, `measure`, `read_text`, `set_scale`, `check`, `commit_geometry`) that hypothesises, measures, self-checks and corrects — like a person reading a floorplan.
 - Scale as a ranked ladder: printed dimension strings → scale bar → stated area → object priors, with the source recorded per dimension (measured / derived / inferred).
@@ -67,7 +106,7 @@ First fully usable version of the OpenSpace miniapp: frontend design/layout/UI/U
 
 ---
 
-## 2026-07-30 — Planning
+## 0.0.1 — 2026-07-30 — Planning
 
 - Repo initialised (`ms-hackathon-1`), Apache-2.0 license.
 - `docs/hackathon-post.md` — hackathon brief: build and ship something in one day (09:00–17:00 SGT, Fri 31 Jul).

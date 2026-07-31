@@ -88,6 +88,9 @@
   --color-feedback-info: var(--c-info);
   --color-feedback-info-tint: var(--c-info-tint);
 
+  /* Scrim behind a modal — the workspace stays legible underneath. */
+  --surface-scrim: rgba(23, 23, 23, 0.34);
+
   --elevation-1: 0 1px 2px rgba(23, 23, 23, 0.05), 0 1px 1px rgba(23, 23, 23, 0.04);
   --elevation-2: 0 4px 12px rgba(23, 23, 23, 0.08), 0 1px 3px rgba(23, 23, 23, 0.06);
   --elevation-3: 0 24px 60px rgba(23, 23, 23, 0.12), 0 4px 12px rgba(23, 23, 23, 0.08);
@@ -115,6 +118,7 @@
   --color-sunken: var(--surface-sunken);
   --color-hover: var(--surface-hover);
   --color-selected: var(--surface-selected);
+  --color-scrim: var(--surface-scrim);
   --color-line-subtle: var(--border-subtle);
   --color-line: var(--border-default);
   --color-line-strong: var(--border-strong);
@@ -165,6 +169,35 @@ h4 {
 /* Numbers that can change or align in a column (§5.3) */
 .num {
   font-variant-numeric: tabular-nums;
+}
+
+/* Modal entrance — muted by the reduced-motion block below */
+@keyframes scrim-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-scrim-in {
+  animation: scrim-in 160ms ease-out;
+}
+
+.animate-dialog-in {
+  animation: dialog-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 @media (prefers-reduced-motion: reduce) {

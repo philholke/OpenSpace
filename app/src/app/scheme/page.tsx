@@ -1,10 +1,11 @@
-import { Suspense } from "react";
-import { WorkspaceShell } from "@/features/workspace/WorkspaceShell";
+import { redirect } from "next/navigation";
 
-export default function SchemePage() {
-  return (
-    <Suspense>
-      <WorkspaceShell />
-    </Suspense>
-  );
+/** The workspace moved to `/`. Kept so older links (and their view) still land. */
+export default async function SchemePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string }>;
+}) {
+  const { view } = await searchParams;
+  redirect(view ? `/?view=${encodeURIComponent(view)}` : "/");
 }
