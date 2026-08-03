@@ -113,7 +113,12 @@ const TRACE_SCHEMA = {
           x: { type: "number", description: "Centre of the opening, mm." },
           y: { type: "number" },
           width: { type: "number", description: "Clear width along the wall, mm." },
-          kind: { type: "string", enum: ["door", "double-door", "window"] },
+          kind: {
+            type: "string",
+            enum: ["door", "double-door", "window", "entrance"],
+            description:
+              "Use 'entrance' for an open shopfront/lobby entry with no door leaf drawn.",
+          },
         },
         required: ["x", "y", "width", "kind"],
       },

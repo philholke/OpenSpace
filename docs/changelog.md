@@ -4,11 +4,34 @@ Latest updates on top.
 
 ## Index
 
+- [0.3.0 — 2026-08-03 — Walls mode: hand-correct the trace, place doors/windows/entrances](#030--2026-08-03--walls-mode)
 - [0.2.0 — 2026-07-31 — Real drawing ingestion: upload → Claude vision digitiser](#020--2026-07-31--real-drawing-ingestion)
 - [0.1.1 — 2026-07-31 — Workspace-first landing: the ingest becomes a dialog over the dashboard](#011--2026-07-31--workspace-first-landing)
 - [0.1.0 — 2026-07-31 — v1 frontend built, verified and deployed (deployment later torn down)](#010--2026-07-31--v1-frontend)
 - [0.0.2 — 2026-07-31 — Direction: agentic drawing ingestion](#002--2026-07-31--direction)
 - [0.0.1 — 2026-07-30 — Planning docs and repo setup](#001--2026-07-30--planning)
+
+---
+
+## 0.3.0 — 2026-08-03 — Walls mode
+
+**Why.** A digitised trace that is 90 % right was previously 100 % stuck — the boundary and openings were read-only. This makes the correction UI the editor (the 0.0.2 direction): a `Layout | Walls` toggle on the plan turns the shell itself editable. Full detail in [`docs/completions/0.3.0-wall-and-opening-editing.md`](completions/0.3.0-wall-and-opening-editing.md).
+
+### Walls mode — `PlanCanvas.tsx`, `Inspector.tsx`
+
+- Drag corners (25 mm snap), push whole walls in/out along their normal, press a midpoint **+** to add a corner and drag it away in one gesture, Delete to remove corners/openings. Live wall dimensions outside every edge; furniture fades to spectators.
+- Arm **Door / Double door / Window / Entrance** in the Add toolbar → ghost preview snaps to the nearest wall → click places it. Openings are selectable, drag along (and across) walls with grab offset preserved, resize by end handles.
+- Inspector panels for corner (X/Y + adjacent wall lengths, numeric), wall (length, split), opening (kind/width/offset) — all commit-on-blur so clamping never fights typing.
+
+### Geometry + store — `planGeometry.ts`, `store.ts`
+
+- New shared primitives: `projectPointToBoundary`, `clampOpeningToEdge`, `reprojectOpenings`. Every boundary mutation re-homes openings by **centre point** — move a corner or split a wall and the door stays where the door is. The digitiser's own projection now uses the same helper.
+- New `OpeningKind` `"entrance"` (open gap + dashed threshold on plan; the 3D wall builder already handled it; digitiser schema extended so uploads can classify it).
+
+### Verification
+
+- `pnpm build` clean; lint at the documented `WalkthroughView.tsx` baseline. Scripted headless-Chrome pointer tests: corner drag / wall push move the derived area (108 → 119 → 121 m²), corner insert/remove/Delete-key, door placement via ghost, opening drag tracks the cursor mm-for-px, resize, kind switch, and the edits carry into the 3D walkthrough over the same store. Mobile 390 px: no page overflow.
+- **Still open:** no undo stack; no self-intersection guard (degenerate < 50 mm edges are rejected, bow-ties are not); columns remain digitiser-only.
 
 ---
 

@@ -7,7 +7,11 @@ import type {
   Unit,
 } from "@/features/scheme/types";
 import { polygonAreaM2, polygonBounds } from "@/features/scheme/derive";
-import { snap } from "@/features/plan/planGeometry";
+import {
+  MIN_OPENING_WIDTH,
+  projectPointToBoundary,
+  snap,
+} from "@/features/plan/planGeometry";
 
 /**
  * Shared contract between the digitiser route (/api/digitise) and the
@@ -69,25 +73,9 @@ function projectOpening(
   raw: TraceFindings["openings"][number],
   id: string,
 ): Opening | null {
-  let best: { edge: number; t: number; dist: number; len: number } | null = null;
-  for (let i = 0; i < boundary.length; i++) {
-    const a = boundary[i];
-    const b = boundary[(i + 1) % boundary.length];
-    const dx = b.x - a.x;
-    const dy = b.y - a.y;
-    const len = Math.hypot(dx, dy);
-    if (len < 1) continue;
-    const t = Math.max(
-      0,
-      Math.min(len, ((raw.x - a.x) * dx + (raw.y - a.y) * dy) / len),
-    );
-    const cx = a.x + (dx / len) * t;
-    const cy = a.y + (dy / len) * t;
-    const dist = Math.hypot(raw.x - cx, raw.y - cy);
-    if (!best || dist < best.dist) best = { edge: i, t, dist, len };
-  }
+  const best = projectPointToBoundary(boundary, raw.x, raw.y);
   if (!best || best.dist > OPENING_SNAP_TOLERANCE_MM) return null;
-  const width = Math.min(Math.max(snap(raw.width), 300), best.len);
+  const width = Math.min(Math.max(snap(raw.width), MIN_OPENING_WIDTH), best.len);
   const offset = Math.max(0, Math.min(best.len - width, snap(best.t - width / 2)));
   return { id, edge: best.edge, offset, width, kind: raw.kind };
 }

@@ -15,7 +15,7 @@ export interface Point {
 /** How a dimension or quantity was obtained. Honest-about-scale, made concrete. */
 export type Provenance = "measured" | "derived" | "inferred" | "placed";
 
-export type OpeningKind = "door" | "double-door" | "window";
+export type OpeningKind = "door" | "double-door" | "window" | "entrance";
 
 /** An opening on a boundary edge, positioned along that edge. */
 export interface Opening {
